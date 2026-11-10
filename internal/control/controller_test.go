@@ -285,3 +285,25 @@ func TestRecoveryReservesActiveContextDespiteCachedIdleStats(t *testing.T) {
 		t.Fatal(state)
 	}
 }
+
+func TestRunnerRestartClearsPreviousFinalization(t *testing.T) {
+	ctx := context.Background()
+	config := configuration()
+	config.ContextPath = "/execution-context"
+	f := &contextRunner{fakeRunner: fakeRunner{state: "running"}, run: runner.RunContext{ID: "old", Scenario: "native"}}
+	c, _ := New(config, f)
+	c.State(ctx)
+	f.set("stopped")
+	if state := c.State(ctx); state.Phase != "stopping" {
+		t.Fatal(state)
+	}
+	f.run = runner.RunContext{}
+	f.set("ready")
+	state := c.State(ctx)
+	if state.Phase != "ready" || state.Context != nil || state.Message != "" {
+		t.Fatal(state)
+	}
+	if err := c.Start(ctx, state.Revision, "native", nil); err != nil {
+		t.Fatal(err)
+	}
+}
