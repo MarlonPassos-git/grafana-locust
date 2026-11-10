@@ -17,6 +17,17 @@ type Field struct {
 	Default  string   `json:"default"`
 	Min      *float64 `json:"min,omitempty"`
 	Max      *float64 `json:"max,omitempty"`
+	Options  []Option `json:"options,omitempty"`
+}
+type Option struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
+}
+type Profile struct {
+	ID       string            `json:"id"`
+	Name     string            `json:"name"`
+	Scenario string            `json:"scenario"`
+	Values   map[string]string `json:"values"`
 }
 type Scenario struct {
 	ID     string            `json:"id"`
@@ -27,17 +38,22 @@ type Scenario struct {
 type Config struct {
 	RunnerURL   string     `json:"runnerUrl"`
 	ContextPath string     `json:"contextPath,omitempty"`
+	RecentPath  string     `json:"recentPath,omitempty"`
 	HistoryURL  string     `json:"historyUrl,omitempty"`
 	Scenarios   []Scenario `json:"scenarios"`
+	Profiles    []Profile  `json:"profiles,omitempty"`
 }
 
 var identifier = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]*$`)
 
 func (c Config) Validate() error {
-	if c.ContextPath != "" {
-		u, e := url.Parse(c.ContextPath)
-		if e != nil || u.IsAbs() || u.Host != "" || len(c.ContextPath) < 1 || c.ContextPath[0] != '/' || u.RawQuery != "" || u.Fragment != "" {
-			return fmt.Errorf("contextPath: expected absolute path on configured runner")
+	for name, path := range map[string]string{"contextPath": c.ContextPath, "recentPath": c.RecentPath} {
+		if path == "" {
+			continue
+		}
+		u, e := url.Parse(path)
+		if e != nil || u.IsAbs() || u.Host != "" || path[0] != '/' || u.RawQuery != "" || u.Fragment != "" {
+			return fmt.Errorf("%s: expected absolute path on configured runner", name)
 		}
 	}
 	if len(c.Scenarios) == 0 {
@@ -70,6 +86,26 @@ func (c Config) Validate() error {
 			if err := f.validate(f.Default); err != nil {
 				return err
 			}
+			options := map[string]bool{}
+			for _, option := range f.Options {
+				if option.Label == "" || options[option.Value] {
+					return fmt.Errorf("field %q: expected unique options with labels", f.Name)
+				}
+				options[option.Value] = true
+				if err := f.validate(option.Value); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	profiles := map[string]bool{}
+	for _, profile := range c.Profiles {
+		if !identifier.MatchString(profile.ID) || profiles[profile.ID] || profile.Name == "" {
+			return fmt.Errorf("profile %q: expected unique identifier and name", profile.ID)
+		}
+		profiles[profile.ID] = true
+		if _, err := c.Form(profile.Scenario, profile.Values); err != nil {
+			return fmt.Errorf("profile %q: %w", profile.ID, err)
 		}
 	}
 	return nil
@@ -85,6 +121,18 @@ func (f Field) validate(value string) error {
 	}
 	if len(value) > 2048 {
 		return invalid("maximum length 2048")
+	}
+	if len(f.Options) > 0 {
+		found := false
+		for _, option := range f.Options {
+			if option.Value == value {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return invalid("registered option")
+		}
 	}
 	if f.Type == "url" {
 		u, e := url.Parse(value)
@@ -138,7 +186,7 @@ func (c Config) Form(id string, values map[string]string) (url.Values, error) {
 	return nil, fmt.Errorf("scenario %q: expected registered identifier", id)
 }
 
-// UnmarshalJSON accepts Grafana provisioning's numeric environment expansion
+// UnmarshalJSON accepts Grafana provisioning's numeric and boolean environment expansion
 // while keeping the browser catalog and native form defaults as strings.
 func (f *Field) UnmarshalJSON(data []byte) error {
 	type alias Field
@@ -156,9 +204,14 @@ func (f *Field) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(decoded.Default, &f.Default); err == nil {
 		return nil
 	}
+	var boolean bool
+	if err := json.Unmarshal(decoded.Default, &boolean); err == nil {
+		f.Default = strconv.FormatBool(boolean)
+		return nil
+	}
 	var number json.Number
 	if err := json.Unmarshal(decoded.Default, &number); err != nil {
-		return fmt.Errorf("field %q default: expected string or number", f.Name)
+		return fmt.Errorf("field %q default: expected string, number or boolean", f.Name)
 	}
 	f.Default = number.String()
 	return nil

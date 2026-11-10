@@ -18,6 +18,7 @@ type App struct {
 	backend.CallResourceHandler
 	controller *control.Controller
 	config     control.Config
+	runner     *runner.Client
 }
 
 func New(_ context.Context, settings backend.AppInstanceSettings) (instancemgmt.Instance, error) {
@@ -33,10 +34,11 @@ func New(_ context.Context, settings backend.AppInstanceSettings) (instancemgmt.
 	if err != nil {
 		return nil, err
 	}
-	app := &App{controller: controller, config: config}
+	app := &App{controller: controller, config: config, runner: client}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /catalog", app.catalog)
 	mux.HandleFunc("GET /state", app.state)
+	mux.HandleFunc("GET /recent", app.recent)
 	mux.HandleFunc("POST /start", app.start)
 	mux.HandleFunc("POST /stop", app.stop)
 	app.CallResourceHandler = httpadapter.New(mux)
@@ -50,7 +52,19 @@ func reply(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 func (a *App) catalog(w http.ResponseWriter, r *http.Request) {
-	reply(w, 200, map[string]any{"scenarios": a.config.Scenarios, "historyUrl": a.config.HistoryURL})
+	reply(w, 200, map[string]any{"scenarios": a.config.Scenarios, "profiles": a.config.Profiles, "recentEnabled": a.config.RecentPath != "", "historyUrl": a.config.HistoryURL})
+}
+func (a *App) recent(w http.ResponseWriter, r *http.Request) {
+	if a.config.RecentPath == "" {
+		reply(w, 200, map[string]any{"executions": []runner.RecentExecution{}})
+		return
+	}
+	executions, err := a.runner.Recent(r.Context(), a.config.RecentPath)
+	if err != nil {
+		reply(w, 502, map[string]string{"message": "Não foi possível carregar as últimas execuções. Tente novamente."})
+		return
+	}
+	reply(w, 200, map[string]any{"executions": executions})
 }
 func (a *App) state(w http.ResponseWriter, r *http.Request) {
 	reply(w, 200, a.controller.State(r.Context()))

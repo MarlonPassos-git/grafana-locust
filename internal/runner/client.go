@@ -127,3 +127,25 @@ func (c *Client) Context(ctx context.Context, path string) (RunContext, error) {
 	err := c.request(ctx, http.MethodGet, path, nil, &result)
 	return result, err
 }
+
+// RecentExecution contains only replayable configuration supplied by the consumer.
+type RecentExecution struct {
+	RunContext
+	Passed *bool `json:"passed"`
+}
+
+func (c *Client) Recent(ctx context.Context, path string) ([]RecentExecution, error) {
+	var result struct {
+		Executions []RecentExecution `json:"executions"`
+	}
+	if err := c.request(ctx, http.MethodGet, path, nil, &result); err != nil {
+		return nil, err
+	}
+	if result.Executions == nil {
+		return nil, errors.New("runner returned invalid recent executions")
+	}
+	if len(result.Executions) > 3 {
+		result.Executions = result.Executions[:3]
+	}
+	return result.Executions, nil
+}
