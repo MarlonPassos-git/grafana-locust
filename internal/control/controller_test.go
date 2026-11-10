@@ -229,7 +229,7 @@ func TestContextWaitsForNewPersistedIdentity(t *testing.T) {
 	}
 	// A backend restarted during an active test recovers the consumer identity.
 	recovered, _ := New(config, f)
-	if state := recovered.State(ctx); state.Context == nil || state.Context.ID != "new" || state.Phase != "running" {
+	if state := recovered.State(ctx); state.Context == nil || state.Context.ID != "new" || state.Phase != "running" || state.Scenario != "native" {
 		t.Fatal(state)
 	}
 }
