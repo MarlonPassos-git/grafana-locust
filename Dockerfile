@@ -4,7 +4,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY tsconfig.json webpack.config.cjs vitest.config.ts biome.json ./
 COPY src ./src
-RUN npm run lint && npm test && npm run typecheck && npm run build && cp src/plugin.json dist/plugin.json && cp -r src/img dist/img
+COPY scripts ./scripts
+RUN npm run lint && npm test && npm run typecheck && npm run build
 
 FROM golang:1.27.3-bookworm AS backend
 WORKDIR /src
