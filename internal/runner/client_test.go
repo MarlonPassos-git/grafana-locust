@@ -81,3 +81,24 @@ func TestRedirectRejected(t *testing.T) {
 		t.Fatal("command escaped configured runner")
 	}
 }
+
+func TestRecentExecutions(t *testing.T) {
+	for _, body := range []string{`{"executions":[{"id":"run","scenario":"native","values":{"user_count":"3"},"passed":false}]}`, `{}`, `invalid secret`} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != "GET" || r.URL.Path != "/recent-executions" {
+				t.Errorf("unexpected history request")
+			}
+			w.Write([]byte(body))
+		}))
+		client, _ := New(server.URL)
+		runs, err := client.Recent(context.Background(), "/recent-executions")
+		server.Close()
+		if strings.Contains(body, `"executions"`) {
+			if err != nil || len(runs) != 1 || runs[0].Values["user_count"] != "3" || runs[0].Passed == nil || *runs[0].Passed {
+				t.Fatalf("recent: %v %v", runs, err)
+			}
+		} else if err == nil || strings.Contains(err.Error(), "secret") {
+			t.Fatalf("expected sanitized error: %v", err)
+		}
+	}
+}

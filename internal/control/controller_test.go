@@ -53,6 +53,32 @@ func (f *fakeRunner) set(state string) { f.mu.Lock(); defer f.mu.Unlock(); f.sta
 func configuration() Config {
 	return Config{Scenarios: []Scenario{{ID: "native", Name: "Native", Fields: []Field{{Name: "user_count", Label: "Users", Type: "integer", Required: true, Default: "1"}}}}}
 }
+
+func TestProfilesAndPaymentOptions(t *testing.T) {
+	config := configuration()
+	config.Scenarios[0].Fields = append(config.Scenarios[0].Fields, Field{Name: "payment_system", Label: "Payment", Type: "string", Required: true, Default: "125", Options: []Option{{Label: "Pix", Value: "125"}, {Label: "Boleto", Value: "6"}}})
+	config.Profiles = []Profile{{ID: "test", Name: "Tests", Scenario: "native", Values: map[string]string{"payment_system": "6"}}}
+	if err := config.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	form, err := config.Form("native", config.Profiles[0].Values)
+	if err != nil || form.Get("payment_system") != "6" || form.Get("user_count") != "1" {
+		t.Fatalf("profile form: %v %v", form, err)
+	}
+	if _, err := config.Form("native", map[string]string{"payment_system": "invalid"}); err == nil {
+		t.Fatal("unregistered payment accepted")
+	}
+	for _, profile := range []Profile{
+		{ID: "test", Name: "Tests", Scenario: "missing"},
+		{ID: "test", Name: "Tests", Scenario: "native", Values: map[string]string{"removed": "1"}},
+		{ID: "test", Name: "Tests", Scenario: "native", Values: map[string]string{"payment_system": "999"}},
+	} {
+		config.Profiles = []Profile{profile}
+		if err := config.Validate(); err == nil {
+			t.Fatalf("invalid profile accepted: %+v", profile)
+		}
+	}
+}
 func TestConcurrentStartAndStaleStop(t *testing.T) {
 	ctx := context.Background()
 	f := &fakeRunner{state: "ready", entered: make(chan struct{}), release: make(chan struct{})}
@@ -243,6 +269,18 @@ func TestGrafanaNumericProvisioningDefaults(t *testing.T) {
 	form, err := config.Form("checkout", nil)
 	if err != nil || form.Get("total") != "50" || form.Get("duration") != "" {
 		t.Fatalf("%v %v", form, err)
+	}
+}
+
+func TestGrafanaBooleanProvisioningDefaults(t *testing.T) {
+	for _, value := range []string{"true", "false"} {
+		var field Field
+		if err := json.Unmarshal([]byte(`{"name":"capture_error_body","default":`+value+`}`), &field); err != nil {
+			t.Fatal(err)
+		}
+		if field.Default != value {
+			t.Fatalf("default = %q, want %q", field.Default, value)
+		}
 	}
 }
 

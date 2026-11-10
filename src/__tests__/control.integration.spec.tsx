@@ -60,6 +60,31 @@ vi.mock("@grafana/ui", () => ({
   Input: (props: React.InputHTMLAttributes<HTMLInputElement>) => (
     <input {...props} />
   ),
+  RadioButtonGroup: ({
+    options,
+    value,
+    onChange,
+    disabled,
+  }: {
+    options: Array<{ label: string; value: string }>;
+    value: string;
+    onChange: (value: string) => void;
+    disabled: boolean;
+  }) => (
+    <div>
+      {options.map((option) => (
+        <label key={option.value}>
+          <input
+            type="radio"
+            checked={value === option.value}
+            disabled={disabled}
+            onChange={() => onChange(option.value)}
+          />
+          {option.label}
+        </label>
+      ))}
+    </div>
+  ),
   Select: ({
     inputId,
     options,
@@ -202,4 +227,140 @@ test("reload recovers active values and the exact persisted report link", async 
     (screen.getByRole("button", { name: "Parar teste" }) as HTMLButtonElement)
       .disabled,
   ).toBe(false);
+});
+
+test("profiles and recent executions prefill editable values without starting a run", async () => {
+  const extended = {
+    ...catalog,
+    recentEnabled: true,
+    profiles: [
+      {
+        id: "gradual",
+        name: "Gradual",
+        scenario: "native",
+        values: { user_count: "5" },
+      },
+    ],
+  };
+  runtime.get.mockImplementation(async (path: string) => {
+    if (path.endsWith("catalog")) {
+      return extended;
+    }
+    if (path.endsWith("recent")) {
+      return {
+        executions: [
+          {
+            id: "latest",
+            startedAt: "2026-11-10T15:00:00Z",
+            scenario: "native",
+            passed: false,
+            diagnosticUrl: "/d/report?latest",
+            values: { user_count: "8", removed_field: "discard" },
+          },
+        ],
+      };
+    }
+    return ready;
+  });
+  render(<ControlPage />);
+  const input = (await screen.findByLabelText("Users *")) as HTMLInputElement;
+  fireEvent.change(screen.getByLabelText("Perfil de execução"), {
+    target: { value: "gradual" },
+  });
+  expect(input.value).toBe("5");
+  expect(runtime.post).not.toHaveBeenCalled();
+  fireEvent.click(await screen.findByText("Últimas execuções (1)"));
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Usar configuração de/ }),
+  );
+  expect(input.value).toBe("8");
+  expect(runtime.post).not.toHaveBeenCalled();
+  fireEvent.change(input, { target: { value: "9" } });
+  fireEvent.submit(screen.getByRole("form", { name: "Configuração do teste" }));
+  expect(runtime.post).toHaveBeenCalledWith(expect.stringContaining("/start"), {
+    revision: "current",
+    scenario: "native",
+    values: { user_count: "9" },
+  });
+  await waitFor(() =>
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Iniciar teste",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false),
+  );
+});
+
+test("payment options submit their configured value", async () => {
+  runtime.get.mockImplementation(async (path: string) =>
+    path.endsWith("catalog")
+      ? {
+          scenarios: [
+            {
+              id: "checkout",
+              name: "Checkout",
+              fields: [
+                {
+                  name: "payment_system",
+                  label: "Pagamento",
+                  type: "string",
+                  required: true,
+                  default: "125",
+                  options: [
+                    { label: "Pix", value: "125" },
+                    { label: "Boleto", value: "6" },
+                  ],
+                },
+              ],
+            },
+          ],
+        }
+      : ready,
+  );
+  render(<ControlPage />);
+  fireEvent.click(await screen.findByLabelText("Boleto"));
+  fireEvent.submit(screen.getByRole("form", { name: "Configuração do teste" }));
+  expect(runtime.post).toHaveBeenCalledWith(expect.stringContaining("/start"), {
+    revision: "current",
+    scenario: "checkout",
+    values: { payment_system: "6" },
+  });
+  await waitFor(() =>
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Iniciar teste",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false),
+  );
+});
+
+test("history failures can be retried without blocking manual configuration", async () => {
+  runtime.get.mockImplementation(async (path: string) => {
+    if (path.endsWith("catalog")) {
+      return { ...catalog, recentEnabled: true };
+    }
+    if (path.endsWith("recent")) {
+      throw new Error("unavailable");
+    }
+    return ready;
+  });
+  render(<ControlPage />);
+  fireEvent.click(await screen.findByText("Últimas execuções (0)"));
+  await screen.findByText("Não foi possível carregar o histórico.");
+  expect(
+    (screen.getByRole("button", { name: "Iniciar teste" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+  runtime.get.mockImplementation(async (path: string) =>
+    path.endsWith("recent") ? { executions: [] } : ready,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+  await screen.findByText(
+    "Após encerrar um teste, sua configuração aparecerá aqui.",
+  );
+  expect(runtime.post).not.toHaveBeenCalled();
 });
