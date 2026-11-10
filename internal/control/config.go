@@ -1,6 +1,7 @@
 package control
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/url"
@@ -135,4 +136,30 @@ func (c Config) Form(id string, values map[string]string) (url.Values, error) {
 		return form, nil
 	}
 	return nil, fmt.Errorf("scenario %q: expected registered identifier", id)
+}
+
+// UnmarshalJSON accepts Grafana provisioning's numeric environment expansion
+// while keeping the browser catalog and native form defaults as strings.
+func (f *Field) UnmarshalJSON(data []byte) error {
+	type alias Field
+	decoded := struct {
+		*alias
+		Default json.RawMessage `json:"default"`
+	}{alias: (*alias)(f)}
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	if len(decoded.Default) == 0 || string(decoded.Default) == "null" {
+		f.Default = ""
+		return nil
+	}
+	if err := json.Unmarshal(decoded.Default, &f.Default); err == nil {
+		return nil
+	}
+	var number json.Number
+	if err := json.Unmarshal(decoded.Default, &number); err != nil {
+		return fmt.Errorf("field %q default: expected string or number", f.Name)
+	}
+	f.Default = number.String()
+	return nil
 }
