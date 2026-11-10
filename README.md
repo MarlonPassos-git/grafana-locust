@@ -17,7 +17,7 @@ não chegou ao runner. Nesse caso, confira no runner que não há carga nem
 requisição de início pendente antes de recriar o backend Grafana. O plugin
 não repete o POST. A revisão local de controle não é um ID persistido do Locust.
 
-As rotas de recursos são `GET /catalog`, `GET /state`, `POST /start` e
+As rotas de recursos são `GET /catalog`, `GET /state`, `GET /recent`, `POST /start` e
 `POST /stop`. Comandos exigem a identidade Editor/Admin autenticada enviada pelo
 Grafana via SDK. Cabeçalhos do navegador não concedem permissão. O corpo contém
 `revision` obtida de `/state`; iniciar também recebe `scenario` e `values`.
@@ -61,7 +61,15 @@ Campos usam os nomes nativos/customizados esperados por `/swarm`.
 `fixed` contém parâmetros não editáveis, como seleção de classe/shape quando
 o runner usa `--class-picker`. Campos editáveis podem ser `string`, `url`,
 `integer` ou `number`, com `required`, `default`, `min` e `max`.
-As regras de negócio adicionais continuam no cenário Locust.
+Use `options: [{"label": "Pix", "value": "125"}, {"label": "Boleto", "value": "6"}]` para expor um campo como escolhas visíveis. O backend valida o valor contra as opções registradas, além do tipo e dos limites. As regras de negócio adicionais continuam no cenário Locust.
+
+Perfis compartilhados são definidos em `jsonData.profiles`:
+
+```json
+[{"id": "gradual", "name": "Carga gradual", "scenario": "native", "values": {"user_count": "3", "spawn_rate": "1"}}]
+```
+
+Cada perfil referencia um cenário existente e apenas campos editáveis registrados. Campos omitidos recebem seus padrões; campos inválidos ou desconhecidos impedem carregar a configuração. Selecionar um perfil preenche o formulário; o usuário pode editar antes de clicar em Iniciar teste.
 
 O exemplo independente e a integração checkout foram validados localmente.
 Remoto, assinatura, licença de distribuição e publicação serão definidos antes
@@ -85,6 +93,12 @@ A imagem usa estágios Node 24.22.1 e Go 1.27.3. O plugin fica em
 `/opt/grafana/plugins`, fora do volume padrão `/var/lib/grafana`.
 A exceção de assinatura fica restrita a `locust-control-app`.
 
+O build empacota `plugin.json` com a versão base e um sufixo calculado pelo
+SHA-256 de `module.js`. Como o Grafana usa a versão na chave de cache do
+JavaScript, alterações do frontend recebem uma URL nova após reconstruir a
+imagem e recriar o Grafana. Recarregue a página para carregar os novos metadados.
+O manifesto-fonte mantém a versão base; nenhum dado de execução entra no hash.
+
 ## Contexto opcional
 
 Configure `contextPath` com um caminho no runner, por exemplo
@@ -94,6 +108,16 @@ Configure `contextPath` com um caminho no runner, por exemplo
 A identidade pertence ao consumidor. O controlador descarta o contexto do
 lote anterior após Iniciar e aguarda uma identidade nova antes de mostrar
 o relatório. Sem esse endpoint, o controle nativo continua funcionando.
+
+## Histórico opcional para reutilização
+
+Configure `recentPath`, por exemplo `/recent-executions`, com um caminho no runner que retorne:
+
+```json
+{"executions": [{"id": "2026-11-10T18:00:00+00:00", "startedAt": "2026-11-10T18:00:00+00:00", "diagnosticUrl": "/d/report?run=example", "scenario": "native", "values": {"host": "http://target", "user_count": "3"}, "passed": true}]}
+```
+
+O consumidor consulta seu histórico persistido e ordena as três últimas execuções encerradas da mais recente para a mais antiga. O plugin limita a lista a três e atualiza ao mudar o estado do runner. O botão Usar configuração carrega apenas os campos atuais do cenário, completa padrões e mantém a necessidade de iniciar explicitamente. Sem `recentPath`, essa seção não aparece. Falhas de consulta permitem tentar novamente e não bloqueiam configurar o teste manualmente.
 
 Limites: uma instância Grafana, um runner, sem HA ou alterações externas
 simultâneas no runner. O plugin não persiste métricas nem executa scripts enviados
