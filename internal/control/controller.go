@@ -77,7 +77,10 @@ func (c *Controller) reconcile(ctx context.Context) error {
 	if active(stats.State) {
 		if !c.observedActive && c.state.Phase != "starting" && c.state.Phase != "stopping" && !c.ambiguous {
 			c.state.Revision = revision()
-			c.state.Scenario = ""
+			if c.state.Context == nil {
+				c.state.Scenario = ""
+				c.state.Values = nil
+			}
 		}
 		c.observedActive = true
 		if stats.State == "cleanup" || stats.State == "stopping" || c.state.Phase == "stopping" {

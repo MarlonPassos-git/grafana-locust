@@ -17,7 +17,7 @@ function errorMessage(error: unknown): string {
  return 'Não foi possível consultar o runner. Aguarde a reconexão antes de enviar outro comando.';
 }
 
-function ControlPage() {
+export function ControlPage() {
  const [catalog, setCatalog] = useState<Catalog>();
  const [scenarioId, setScenarioId] = useState('');
  const [values, setValues] = useState<Record<string,string>>({});
@@ -58,7 +58,7 @@ function ControlPage() {
   if (state?.scenario && state.values && ['starting','running','stopping'].includes(state.phase)) {
    setScenarioId(state.scenario); setValues(state.values);
   }
- }, [state?.revision, state?.phase]);
+ }, [state, catalog]);
 
  async function command(action: 'start' | 'stop') {
   if (submitting.current || !state) { return; }
