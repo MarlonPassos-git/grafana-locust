@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/url"
 	"sync"
@@ -230,5 +231,17 @@ func TestContextWaitsForNewPersistedIdentity(t *testing.T) {
 	recovered, _ := New(config, f)
 	if state := recovered.State(ctx); state.Context == nil || state.Context.ID != "new" || state.Phase != "running" {
 		t.Fatal(state)
+	}
+}
+
+func TestGrafanaNumericProvisioningDefaults(t *testing.T) {
+	var config Config
+	err := json.Unmarshal([]byte(`{"scenarios":[{"id":"checkout","name":"Checkout","fields":[{"name":"total","label":"Total","type":"integer","default":50},{"name":"duration","label":"Duration","type":"number","default":null}]}]}`), &config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	form, err := config.Form("checkout", nil)
+	if err != nil || form.Get("total") != "50" || form.Get("duration") != "" {
+		t.Fatalf("%v %v", form, err)
 	}
 }
