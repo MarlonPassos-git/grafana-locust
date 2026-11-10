@@ -245,3 +245,24 @@ func TestGrafanaNumericProvisioningDefaults(t *testing.T) {
 		t.Fatalf("%v %v", form, err)
 	}
 }
+
+func TestConsumerFinalizationBlocksNewStart(t *testing.T) {
+	ctx := context.Background()
+	config := configuration()
+	config.ContextPath = "/execution-context"
+	f := &contextRunner{fakeRunner: fakeRunner{state: "running"}, run: runner.RunContext{ID: "run", Scenario: "native"}}
+	c, _ := New(config, f)
+	c.State(ctx)
+	f.set("stopped")
+	finalizing := c.State(ctx)
+	if finalizing.Phase != "stopping" {
+		t.Fatal(finalizing)
+	}
+	if err := c.Start(ctx, finalizing.Revision, "native", nil); !errors.Is(err, ErrConflict) {
+		t.Fatal(err)
+	}
+	f.run.EndedAt = "finished"
+	if state := c.State(ctx); state.Phase != "finished" {
+		t.Fatal(state)
+	}
+}
