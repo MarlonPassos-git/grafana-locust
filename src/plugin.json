@@ -1,10 +1,27 @@
 {
- "type":"app",
- "name":"Locust",
- "id":"locust-control-app",
- "backend":true,
- "executable":"gpx_locust",
- "info":{"description":"Control a configured Locust runner from Grafana","author":{"name":"Marlon Passos"},"keywords":["locust","load testing"],"logos":{"small":"img/logo.svg","large":"img/logo.svg"},"links":[],"screenshots":[],"version":"0.1.0","updated":"2026-11-10"},
- "includes":[{"type":"page","name":"Novo teste","path":"/a/locust-control-app","addToNav":true,"defaultNav":true}],
- "dependencies":{"grafanaDependency":">=13.2.5","plugins":[]}
+  "type": "app",
+  "name": "Locust",
+  "id": "locust-control-app",
+  "backend": true,
+  "executable": "gpx_locust",
+  "info": {
+    "description": "Control a configured Locust runner from Grafana",
+    "author": { "name": "Marlon Passos" },
+    "keywords": ["locust", "load testing"],
+    "logos": { "small": "img/logo.svg", "large": "img/logo.svg" },
+    "links": [],
+    "screenshots": [],
+    "version": "0.1.0",
+    "updated": "2026-11-10"
+  },
+  "includes": [
+    {
+      "type": "page",
+      "name": "Novo teste",
+      "path": "/a/locust-control-app",
+      "addToNav": true,
+      "defaultNav": true
+    }
+  ],
+  "dependencies": { "grafanaDependency": ">=13.2.5", "plugins": [] }
 }
