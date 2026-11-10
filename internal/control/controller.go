@@ -26,14 +26,15 @@ type State struct {
 	Message  string             `json:"message,omitempty"`
 }
 type Controller struct {
-	mu              sync.Mutex
-	runner          Runner
-	config          Config
-	state           State
-	busy            bool
-	observedActive  bool
-	ambiguous       bool
-	previousContext string
+	mu               sync.Mutex
+	runner           Runner
+	config           Config
+	state            State
+	busy             bool
+	observedActive   bool
+	seenRunnerActive bool
+	ambiguous        bool
+	previousContext  string
 }
 
 func revision() string { return rand.Text() }
@@ -67,14 +68,13 @@ func (c *Controller) reconcile(ctx context.Context) error {
 			if run.Values != nil {
 				c.state.Values = run.Values
 			}
-			if run.EndedAt != "" {
-				c.observedActive = true
-			}
+			c.observedActive = true
 		}
 	}
 	c.state.Stats = stats
 	c.state.Message = ""
 	if active(stats.State) {
+		c.seenRunnerActive = true
 		if !c.observedActive && c.state.Phase != "starting" && c.state.Phase != "stopping" && !c.ambiguous {
 			c.state.Revision = revision()
 			if c.state.Context == nil {
@@ -93,7 +93,11 @@ func (c *Controller) reconcile(ctx context.Context) error {
 	// Native stopped can precede consumer persistence/report finalization.
 	// A configured context is the completion barrier for the consumer's batch.
 	if c.config.ContextPath != "" && c.observedActive && (c.state.Context == nil || c.state.Context.EndedAt == "") {
-		c.state.Phase = "stopping"
+		if c.seenRunnerActive || c.state.Phase == "stopping" {
+			c.state.Phase = "stopping"
+		} else {
+			c.state.Phase = "starting"
+		}
 		c.state.Message = "Waiting for the consumer to finish persisting this execution."
 		return nil
 	}
@@ -114,6 +118,7 @@ func (c *Controller) reconcile(ctx context.Context) error {
 	}
 	c.ambiguous = false
 	c.observedActive = false
+	c.seenRunnerActive = false
 	return nil
 }
 func (c *Controller) State(ctx context.Context) State {
@@ -150,6 +155,7 @@ func (c *Controller) Start(ctx context.Context, expected, scenario string, value
 	}
 	c.busy = true
 	c.observedActive = false
+	c.seenRunnerActive = false
 	if c.state.Context != nil {
 		c.previousContext = c.state.Context.ID
 	}
