@@ -90,6 +90,13 @@ func (c *Controller) reconcile(ctx context.Context) error {
 		}
 		return nil
 	}
+	// Native stopped can precede consumer persistence/report finalization.
+	// A configured context is the completion barrier for the consumer's batch.
+	if c.config.ContextPath != "" && c.observedActive && (c.state.Context == nil || c.state.Context.EndedAt == "") {
+		c.state.Phase = "stopping"
+		c.state.Message = "Waiting for the consumer to finish persisting this execution."
+		return nil
+	}
 	// Locust returns from /swarm before its spawn greenlet changes state.
 	// Keep the reservation while the accepted start is still pending.
 	if c.state.Phase == "starting" && !c.observedActive {
