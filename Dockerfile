@@ -2,9 +2,9 @@ FROM node:24.22.1-bookworm-slim AS frontend
 WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
-COPY tsconfig.json webpack.config.cjs ./
+COPY tsconfig.json webpack.config.cjs vitest.config.ts ./
 COPY src ./src
-RUN npm run typecheck && npm run build && cp src/plugin.json dist/plugin.json && cp -r src/img dist/img
+RUN npm test && npm run typecheck && npm run build && cp src/plugin.json dist/plugin.json && cp -r src/img dist/img
 
 FROM golang:1.27.3-bookworm AS backend
 WORKDIR /src
