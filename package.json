@@ -1,0 +1,9 @@
+{
+ "name":"grafana-locust",
+ "version":"0.1.0",
+ "private":true,
+ "engines":{"node":">=24.0.0 <25"},
+ "scripts":{"build":"webpack --mode production","typecheck":"tsc --noEmit"},
+ "dependencies":{"@grafana/data":"13.2.5","@grafana/runtime":"13.2.5","@grafana/ui":"13.2.5","react":"19.2.0","react-dom":"19.2.0"},
+ "devDependencies":{"@types/react":"19.2.2","typescript":"5.9.3","ts-loader":"9.5.4","webpack":"5.112.2","webpack-cli":"6.0.1"}
+}

@@ -1,0 +1,20 @@
+services:
+  target:
+    image: nginx:1.29.3-alpine
+  locust:
+    image: locustio/locust:2.47.0
+    volumes:
+      - ./locustfile.py:/mnt/locust/locustfile.py:ro
+    command: ['-f', '/mnt/locust/locustfile.py', '--host', 'http://target', '--web-host', '0.0.0.0', '--stop-timeout', '35']
+    stop_grace_period: 50s
+  grafana:
+    build: ../..
+    ports:
+      - '127.0.0.1:3100:3000'
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: 'true'
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning/plugins:ro

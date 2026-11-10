@@ -1,0 +1,22 @@
+apiVersion: 1
+apps:
+  - type: locust-control-app
+    org_id: 1
+    disabled: false
+    jsonData:
+      runnerUrl: http://locust:8089
+      scenarios:
+        - id: quick
+          name: Teste rápido
+          fields:
+            - {name: host, label: Host, type: url, required: true, default: 'http://target'}
+            - {name: user_count, label: Usuários, type: integer, required: true, default: '2', min: 1, max: 10}
+            - {name: spawn_rate, label: 'Usuários/s', type: number, required: true, default: '1', min: 0.1, max: 2}
+            - {name: run_time, label: Duração, type: string, default: '10s'}
+        - id: gradual
+          name: Teste gradual
+          fields:
+            - {name: host, label: Host, type: url, required: true, default: 'http://target'}
+            - {name: user_count, label: Usuários, type: integer, required: true, default: '4', min: 1, max: 10}
+            - {name: spawn_rate, label: 'Usuários/s', type: number, required: true, default: '0.5', min: 0.1, max: 2}
+            - {name: run_time, label: Duração, type: string, default: '20s'}
