@@ -57,6 +57,16 @@ func (c *Controller) reconcile(ctx context.Context) error {
 		Context(context.Context, string) (runner.RunContext, error)
 	}); ok && c.config.ContextPath != "" {
 		run, contextErr := reader.Context(ctx, c.config.ContextPath)
+		// A restarted runner has no batch context and reports its initial ready state.
+		// The previous process can no longer complete our cached persistence barrier.
+		if contextErr == nil && run.ID == "" && stats.State == "ready" && c.observedActive {
+			c.state = State{Phase: "ready", Revision: revision(), Stats: stats}
+			c.observedActive = false
+			c.seenRunnerActive = false
+			c.ambiguous = false
+			c.previousContext = ""
+			return nil
+		}
 		if contextErr == nil && run.ID != "" && run.ID != c.previousContext {
 			if c.state.Context != nil && c.state.Context.ID != run.ID {
 				c.state.Revision = revision()
