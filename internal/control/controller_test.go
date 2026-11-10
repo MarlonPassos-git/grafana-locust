@@ -266,3 +266,22 @@ func TestConsumerFinalizationBlocksNewStart(t *testing.T) {
 		t.Fatal(state)
 	}
 }
+
+func TestRecoveryReservesActiveContextDespiteCachedIdleStats(t *testing.T) {
+	ctx := context.Background()
+	config := configuration()
+	config.ContextPath = "/execution-context"
+	f := &contextRunner{fakeRunner: fakeRunner{state: "stopped"}, run: runner.RunContext{ID: "active", Scenario: "native"}}
+	c, _ := New(config, f)
+	recovered := c.State(ctx)
+	if recovered.Phase != "starting" {
+		t.Fatal(recovered)
+	}
+	if err := c.Start(ctx, recovered.Revision, "native", nil); !errors.Is(err, ErrConflict) {
+		t.Fatal(err)
+	}
+	f.set("running")
+	if state := c.State(ctx); state.Phase != "running" {
+		t.Fatal(state)
+	}
+}
