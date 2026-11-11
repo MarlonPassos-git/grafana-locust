@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -85,20 +86,32 @@ func TestRedirectRejected(t *testing.T) {
 func TestRecentExecutions(t *testing.T) {
 	for _, body := range []string{`{"executions":[{"id":"run","scenario":"native","values":{"user_count":"3"},"passed":false}]}`, `{}`, `invalid secret`} {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != "GET" || r.URL.Path != "/recent-executions" {
+			if r.Method != "GET" || r.URL.Path != "/recent-executions" || r.URL.Query().Get("page") != "2" {
 				t.Errorf("unexpected history request")
 			}
 			w.Write([]byte(body))
 		}))
 		client, _ := New(server.URL)
-		runs, err := client.Recent(context.Background(), "/recent-executions")
+		runs, err := client.Recent(context.Background(), "/recent-executions", 2)
 		server.Close()
 		if strings.Contains(body, `"executions"`) {
-			if err != nil || len(runs) != 1 || runs[0].Values["user_count"] != "3" || runs[0].Passed == nil || *runs[0].Passed {
+			if err != nil || len(runs.Executions) != 1 || runs.Executions[0].Values["user_count"] != "3" || runs.Executions[0].Passed == nil || *runs.Executions[0].Passed {
 				t.Fatalf("recent: %v %v", runs, err)
 			}
 		} else if err == nil || strings.Contains(err.Error(), "secret") {
 			t.Fatalf("expected sanitized error: %v", err)
 		}
+	}
+}
+
+func TestHistoryPagePreservesRecordsAndContinuation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(ExecutionPage{Executions: []RecentExecution{{RunContext: RunContext{ID: "1"}}, {RunContext: RunContext{ID: "2"}}, {RunContext: RunContext{ID: "3"}}, {RunContext: RunContext{ID: "4"}}}, HasMore: true})
+	}))
+	defer server.Close()
+	client, _ := New(server.URL)
+	page, err := client.Recent(context.Background(), "/history", 0)
+	if err != nil || len(page.Executions) != 4 || !page.HasMore {
+		t.Fatalf("page: %+v %v", page, err)
 	}
 }
