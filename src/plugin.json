@@ -6,9 +6,14 @@
   "executable": "gpx_locust",
   "info": {
     "description": "Control a configured Locust runner from Grafana",
-    "author": { "name": "Marlon Passos" },
+    "author": {
+      "name": "Marlon Passos"
+    },
     "keywords": ["locust", "load testing"],
-    "logos": { "small": "img/logo.svg", "large": "img/logo.svg" },
+    "logos": {
+      "small": "img/logo.svg",
+      "large": "img/logo.svg"
+    },
     "links": [],
     "screenshots": [],
     "version": "0.1.0",
@@ -17,11 +22,26 @@
   "includes": [
     {
       "type": "page",
-      "name": "Novo teste",
+      "name": "Locust",
       "path": "/a/locust-control-app",
-      "addToNav": true,
+      "addToNav": false,
       "defaultNav": true
+    },
+    {
+      "type": "page",
+      "name": "Execuções",
+      "path": "/a/locust-control-app/executions",
+      "addToNav": true
+    },
+    {
+      "type": "page",
+      "name": "Nova execução",
+      "path": "/a/locust-control-app/new",
+      "addToNav": true
     }
   ],
-  "dependencies": { "grafanaDependency": ">=13.2.5", "plugins": [] }
+  "dependencies": {
+    "grafanaDependency": ">=13.2.5",
+    "plugins": []
+  }
 }

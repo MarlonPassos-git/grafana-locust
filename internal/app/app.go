@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/instancemgmt"
@@ -52,19 +53,28 @@ func reply(w http.ResponseWriter, status int, value any) {
 	_ = json.NewEncoder(w).Encode(value)
 }
 func (a *App) catalog(w http.ResponseWriter, r *http.Request) {
-	reply(w, 200, map[string]any{"scenarios": a.config.Scenarios, "profiles": a.config.Profiles, "recentEnabled": a.config.RecentPath != "", "historyUrl": a.config.HistoryURL})
+	reply(w, 200, map[string]any{"scenarios": a.config.Scenarios, "profiles": a.config.Profiles, "recentEnabled": a.config.RecentPath != "", "contextEnabled": a.config.ContextPath != "", "historyUrl": a.config.HistoryURL})
 }
 func (a *App) recent(w http.ResponseWriter, r *http.Request) {
 	if a.config.RecentPath == "" {
 		reply(w, 200, map[string]any{"executions": []runner.RecentExecution{}})
 		return
 	}
-	executions, err := a.runner.Recent(r.Context(), a.config.RecentPath)
-	if err != nil {
-		reply(w, 502, map[string]string{"message": "Não foi possível carregar as últimas execuções. Tente novamente."})
+	pageText := r.URL.Query().Get("page")
+	if pageText == "" {
+		pageText = "0"
+	}
+	page, pageErr := strconv.Atoi(pageText)
+	if pageErr != nil || page < 0 || page > 1000000 {
+		reply(w, 400, map[string]string{"message": "page: expected integer between 0 and 1000000"})
 		return
 	}
-	reply(w, 200, map[string]any{"executions": executions})
+	executions, err := a.runner.Recent(r.Context(), a.config.RecentPath, page)
+	if err != nil {
+		reply(w, 502, map[string]string{"message": "Não foi possível carregar as execuções. Tente novamente."})
+		return
+	}
+	reply(w, 200, executions)
 }
 func (a *App) state(w http.ResponseWriter, r *http.Request) {
 	reply(w, 200, a.controller.State(r.Context()))

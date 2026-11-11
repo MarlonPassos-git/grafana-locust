@@ -134,18 +134,19 @@ type RecentExecution struct {
 	Passed *bool `json:"passed"`
 }
 
-func (c *Client) Recent(ctx context.Context, path string) ([]RecentExecution, error) {
-	var result struct {
-		Executions []RecentExecution `json:"executions"`
-	}
+type ExecutionPage struct {
+	Executions []RecentExecution `json:"executions"`
+	HasMore    bool              `json:"hasMore"`
+}
+
+func (c *Client) Recent(ctx context.Context, path string, page int) (ExecutionPage, error) {
+	var result ExecutionPage
+	path = fmt.Sprintf("%s?page=%d", path, page)
 	if err := c.request(ctx, http.MethodGet, path, nil, &result); err != nil {
-		return nil, err
+		return result, err
 	}
 	if result.Executions == nil {
-		return nil, errors.New("runner returned invalid recent executions")
+		return result, errors.New("runner returned invalid recent executions")
 	}
-	if len(result.Executions) > 3 {
-		result.Executions = result.Executions[:3]
-	}
-	return result.Executions, nil
+	return result, nil
 }
