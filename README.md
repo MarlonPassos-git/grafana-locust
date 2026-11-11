@@ -71,9 +71,17 @@ Perfis compartilhados são definidos em `jsonData.profiles`:
 
 Cada perfil referencia um cenário existente e apenas campos editáveis registrados. Campos omitidos recebem seus padrões; campos inválidos ou desconhecidos impedem carregar a configuração. Selecionar um perfil preenche o formulário; o usuário pode editar antes de clicar em Iniciar execução.
 
+Os fontes estão em https://github.com/MarlonPassos-git/grafana-locust.
+Para obter o exemplo independente:
+
+```sh
+git clone https://github.com/MarlonPassos-git/grafana-locust.git
+cd grafana-locust/examples/native
+```
+
 O exemplo independente e a integração checkout foram validados localmente.
-Remoto, assinatura, licença de distribuição e publicação serão definidos antes
-de distribuição pública.
+O plugin não tem assinatura nem publicação no catálogo Grafana.
+A licença de distribuição ainda não foi definida.
 
 ## Exemplo independente
 
