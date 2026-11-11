@@ -1,7 +1,7 @@
 # Grafana Locust
 
 - Keep this plugin reusable: checkout scenarios, databases and dashboards belong to consumers.
-- Use the existing checks documented in README.md for affected frontend or Go changes.
+- Use the existing checks documented in CONTRIBUTING.md for affected frontend or Go changes.
 - Commits in this repository use Marlon Passos <63638196+MarlonPassos-git@users.noreply.github.com>. Configure the identity locally; do not change global Git settings.
 - Project memory is `default/marlonpassos-git-grafana-locust`, separate from `default/locust`. Imported context retains its original sources.
 
