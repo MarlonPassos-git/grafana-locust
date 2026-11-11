@@ -1,6 +1,6 @@
 # Grafana Locust
 
-App plugin para controlar um runner Locust pelo Grafana. A interface React e o
+App plugin para controlar um runner Locust pelo Grafana. Em More apps → Locust, **Execuções** abre o controle e a lista salva; **Nova execução** apresenta o formulário e os perfis à direita. A interface React e o
 backend Go foram validados com Grafana 13.2.5, Locust 2.47.0 e SDK Go v0.298.0.
 
 O pacote `internal/runner` adapta a API HTTP nativa do Locust:
@@ -69,7 +69,7 @@ Perfis compartilhados são definidos em `jsonData.profiles`:
 [{"id": "gradual", "name": "Carga gradual", "scenario": "native", "values": {"user_count": "3", "spawn_rate": "1"}}]
 ```
 
-Cada perfil referencia um cenário existente e apenas campos editáveis registrados. Campos omitidos recebem seus padrões; campos inválidos ou desconhecidos impedem carregar a configuração. Selecionar um perfil preenche o formulário; o usuário pode editar antes de clicar em Iniciar teste.
+Cada perfil referencia um cenário existente e apenas campos editáveis registrados. Campos omitidos recebem seus padrões; campos inválidos ou desconhecidos impedem carregar a configuração. Selecionar um perfil preenche o formulário; o usuário pode editar antes de clicar em Iniciar execução.
 
 O exemplo independente e a integração checkout foram validados localmente.
 Remoto, assinatura, licença de distribuição e publicação serão definidos antes
@@ -117,7 +117,11 @@ Configure `recentPath`, por exemplo `/recent-executions`, com um caminho no runn
 {"executions": [{"id": "2026-11-10T18:00:00+00:00", "startedAt": "2026-11-10T18:00:00+00:00", "diagnosticUrl": "/d/report?run=example", "scenario": "native", "values": {"host": "http://target", "user_count": "3"}, "passed": true}]}
 ```
 
-O consumidor consulta seu histórico persistido e ordena as três últimas execuções encerradas da mais recente para a mais antiga. O plugin limita a lista a três e atualiza ao mudar o estado do runner. O botão Usar configuração carrega apenas os campos atuais do cenário, completa padrões e mantém a necessidade de iniciar explicitamente. Sem `recentPath`, essa seção não aparece. Falhas de consulta permitem tentar novamente e não bloqueiam configurar o teste manualmente.
+O plugin envia `?page=0` (inteiro entre 0 e 1000000), incrementado pela paginação. O consumidor consulta seu histórico persistido, incluindo execuções ativas, e retorna uma página ordenada da mais recente para a mais antiga, com `hasMore: true` quando houver outra página. `endedAt` é nulo enquanto a execução não terminou; `passed` pode ser nulo. A integração checkout usa páginas de 20. Não há limite de três registros no plugin.
+
+**Reutilizar configuração** abre Nova execução com os campos atuais do cenário e seus padrões para revisão. O início é explícito. Sem `recentPath`, Execuções informa que não há histórico configurado e mantém o controle nativo. Falhas de consulta permitem tentar novamente. O runner ativo aparece acima da lista com **Parar execução**; formulário e perfis ficam bloqueados até concluir a finalização, preservando os valores preenchidos.
+
+Após iniciar com sucesso, o app aguarda um `contextPath` com ID diferente do anterior para redirecionar ao `diagnosticUrl`. Erros não causam redirecionamento nem repetição automática. Sem contexto opcional, o início confirmado pelo runner abre Execuções para acompanhamento e parada. Recarregar a página não reenvia comandos.
 
 Limites: uma instância Grafana, um runner, sem HA ou alterações externas
 simultâneas no runner. O plugin não persiste métricas nem executa scripts enviados
